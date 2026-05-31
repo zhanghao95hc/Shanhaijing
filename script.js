@@ -1,4 +1,4 @@
-const creatures = {
+﻿const creatures = {
   jiuweihu: {
     name: "九尾狐",
     source: "《山海经·南山经》",
@@ -102,16 +102,6 @@ const creatures = {
 
 const state = {
   current: "jiuweihu",
-  scene: null,
-  renderer: null,
-  camera: null,
-  group: null,
-  three: null,
-  fallback: null,
-  rotation: { x: -0.2, y: 0.35 },
-  scale: 1,
-  dragging: false,
-  last: { x: 0, y: 0 },
 };
 
 const els = {
@@ -124,9 +114,6 @@ const els = {
   interpretation: document.querySelector("#interpretation"),
   facts: document.querySelector("#quick-facts"),
   features: document.querySelector("#feature-list"),
-  viewer: document.querySelector("#three-viewer"),
-  viewerNote: document.querySelector("#viewer-note"),
-  reset: document.querySelector("#reset-view"),
   menuItems: [...document.querySelectorAll(".menu-item")],
 };
 
@@ -145,17 +132,11 @@ function renderCreature(key) {
   els.caption.textContent = creature.caption;
   els.original.textContent = creature.original;
   els.interpretation.textContent = creature.interpretation;
-  els.viewerNote.textContent = `当前模型强调${creature.name}的主要识别特征，可拖动观察轮廓，滚轮放大或缩小。`;
 
   els.facts.innerHTML = creature.facts
     .map(([term, desc]) => `<div><dt>${term}</dt><dd>${desc}</dd></div>`)
     .join("");
   els.features.innerHTML = creature.features.map((item) => `<li>${item}</li>`).join("");
-  if (state.three) {
-    buildThreeModel(creature);
-  } else {
-    buildFallbackModel(creature);
-  }
 }
 
 function initMenu() {
@@ -179,281 +160,7 @@ function updateMenuState(key) {
   });
 }
 
-async function initThree() {
-  buildFallbackModel(creatures[state.current]);
-  bindViewerControls();
-  return;
-
-  try {
-    const THREE = await import("https://unpkg.com/three@0.165.0/build/three.module.js");
-    state.three = THREE;
-    state.scene = new THREE.Scene();
-    state.scene.background = null;
-
-    state.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
-    state.camera.position.set(0, 1.35, 7.2);
-
-    state.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    state.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    state.renderer.setSize(els.viewer.clientWidth, els.viewer.clientHeight);
-    els.viewer.innerHTML = "";
-    state.fallback = null;
-    els.viewer.appendChild(state.renderer.domElement);
-
-    const ambient = new THREE.HemisphereLight(0xf7eed6, 0x14231f, 2.7);
-    const key = new THREE.DirectionalLight(0xffdf9c, 3.2);
-    key.position.set(4, 5, 6);
-    const rim = new THREE.DirectionalLight(0x7fb6a5, 1.6);
-    rim.position.set(-4, 2, -3);
-    state.scene.add(ambient, key, rim);
-
-    const grid = new THREE.GridHelper(9, 18, 0x8d7140, 0x3a3a2f);
-    grid.position.y = -1.35;
-    grid.material.transparent = true;
-    grid.material.opacity = 0.2;
-    state.scene.add(grid);
-
-    buildThreeModel(creatures[state.current]);
-    bindViewerControls();
-    resizeRenderer();
-    animate();
-  } catch (error) {
-    console.info("Three.js unavailable, using CSS 3D fallback.", error);
-    buildFallbackModel(creatures[state.current]);
-    bindViewerControls();
-  }
-}
-
-function buildThreeModel(creature) {
-  const THREE = state.three;
-  if (!THREE) return;
-  if (state.group) {
-    state.scene.remove(state.group);
-  }
-
-  const model = creature.model;
-  const group = new THREE.Group();
-  const main = new THREE.MeshStandardMaterial({
-    color: model.main,
-    roughness: 0.72,
-    metalness: 0.02,
-  });
-  const accent = new THREE.MeshStandardMaterial({
-    color: model.accent,
-    roughness: 0.68,
-  });
-  const dark = new THREE.MeshStandardMaterial({
-    color: model.dark,
-    roughness: 0.78,
-  });
-  const ivory = new THREE.MeshStandardMaterial({
-    color: 0xf1e5c7,
-    roughness: 0.62,
-  });
-
-  const body = new THREE.Mesh(new THREE.SphereGeometry(1.45, 48, 24), main);
-  body.scale.set(model.type === "goat" ? 1.55 : 1.82, model.type === "goat" ? 0.92 : 0.72, 0.82);
-  body.position.set(0, 0, 0);
-  group.add(body);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.62, 32, 18), model.humanFace ? ivory : main);
-  head.scale.set(model.humanFace ? 0.78 : 1, model.humanFace ? 1.1 : 0.82, 0.9);
-  head.position.set(-2.15, 0.48, 0.2);
-  group.add(head);
-
-  const snout = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.74, 28), model.humanFace ? dark : accent);
-  snout.rotation.z = Math.PI / 2;
-  snout.position.set(-2.7, 0.42, 0.2);
-  group.add(snout);
-
-  const eyeMaterial = new THREE.MeshStandardMaterial({
-    color: 0xf2c15b,
-    emissive: 0x4a2608,
-    emissiveIntensity: 0.5,
-  });
-  addEye(group, THREE, -2.6, 0.65, 0.56, eyeMaterial);
-  addEye(group, THREE, -2.6, 0.65, -0.16, eyeMaterial);
-
-  if (model.humanFace) {
-    addEye(group, THREE, -1.26, -0.32, 0.82, eyeMaterial, 0.13);
-    addEye(group, THREE, -1.26, -0.32, -0.82, eyeMaterial, 0.13);
-    addClawHands(group, THREE, ivory, dark);
-  }
-
-  for (let i = 0; i < 4; i += 1) {
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 1.12, 8, 18), main);
-    leg.position.set(i < 2 ? -1.0 : 1.05, -1.02, i % 2 === 0 ? 0.48 : -0.48);
-    leg.rotation.z = i < 2 ? -0.14 : 0.12;
-    group.add(leg);
-  }
-
-  for (let i = 0; i < model.tails; i += 1) {
-    const angle = (i - (model.tails - 1) / 2) * (model.tails > 5 ? 0.2 : 0.28);
-    const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(1.55, 0.26, 0),
-      new THREE.Vector3(2.15, 0.75 + Math.abs(angle) * 0.5, angle * 2.2),
-      new THREE.Vector3(2.85, 1.0 + Math.cos(i) * 0.2, angle * 3.6),
-      new THREE.Vector3(3.35, 0.38 + Math.sin(i) * 0.24, angle * 4.3),
-    ]);
-    const tail = new THREE.Mesh(new THREE.TubeGeometry(curve, 36, model.type === "fox" ? 0.12 : 0.09, 12), accent);
-    group.add(tail);
-  }
-
-  if (model.horn) {
-    const hornCount = model.type === "goat" ? 2 : 1;
-    for (let i = 0; i < hornCount; i += 1) {
-      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.92, 24), dark);
-      horn.position.set(-2.16, 1.13, hornCount === 1 ? 0.2 : i === 0 ? 0.45 : -0.08);
-      horn.rotation.z = hornCount === 1 ? -0.16 : i === 0 ? -0.45 : 0.28;
-      group.add(horn);
-    }
-  }
-
-  if (model.type === "leopard") {
-    for (let i = 0; i < 34; i += 1) {
-      const spot = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), dark);
-      spot.scale.set(1, 0.18, 0.68);
-      spot.position.set(
-        -1.35 + Math.random() * 2.9,
-        0.1 + Math.random() * 0.52,
-        (Math.random() > 0.5 ? 0.78 : -0.78) + Math.random() * 0.05,
-      );
-      group.add(spot);
-    }
-  }
-
-  group.rotation.set(state.rotation.x, state.rotation.y, 0);
-  group.scale.setScalar(state.scale);
-  state.group = group;
-  state.scene.add(group);
-}
-
-function addEye(group, THREE, x, y, z, material, radius = 0.09) {
-  const eye = new THREE.Mesh(new THREE.SphereGeometry(radius, 16, 10), material);
-  eye.position.set(x, y, z);
-  group.add(eye);
-}
-
-function addClawHands(group, THREE, skin, dark) {
-  for (const side of [0.62, -0.62]) {
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 12), skin);
-    hand.scale.set(0.8, 0.42, 1.2);
-    hand.position.set(-1.42, -1.18, side);
-    group.add(hand);
-    for (let i = 0; i < 4; i += 1) {
-      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.24, 10), dark);
-      claw.rotation.x = Math.PI / 2;
-      claw.position.set(-1.58 - i * 0.035, -1.19, side + (i - 1.5) * 0.09);
-      group.add(claw);
-    }
-  }
-}
-
-function buildFallbackModel(creature) {
-  const model = creature.model;
-  const tailCount = Math.min(model.tails, 9);
-  els.viewer.innerHTML = `
-    <div class="css-creature" style="--model-main:#${model.main.toString(16).padStart(6, "0")}; --model-accent:#${model.accent.toString(16).padStart(6, "0")}; --scale:${state.scale}; --rx:${state.rotation.x}rad; --ry:${state.rotation.y}rad;">
-      <div class="model">
-        <span class="body"></span>
-        <span class="head"></span>
-        <span class="leg" style="--z:52px"></span>
-        <span class="leg" style="--z:-24px"></span>
-        ${model.horn ? '<span class="horn"></span>' : ""}
-        ${Array.from({ length: tailCount })
-          .map((_, i) => {
-            const top = 24 + i * (42 / Math.max(tailCount, 1));
-            const z = -50 + i * (100 / Math.max(tailCount - 1, 1));
-            const rz = -36 + i * (72 / Math.max(tailCount - 1, 1));
-            return `<span class="tail" style="--top:${top}%; --left:62%; --width:${model.type === "fox" ? 34 : 26}%; --z:${z}px; --rz:${rz}deg"></span>`;
-          })
-          .join("")}
-      </div>
-    </div>
-  `;
-  state.fallback = els.viewer.querySelector(".css-creature");
-}
-
-function bindViewerControls() {
-  els.viewer.addEventListener("pointerdown", (event) => {
-    state.dragging = true;
-    state.last = { x: event.clientX, y: event.clientY };
-    els.viewer.setPointerCapture(event.pointerId);
-  });
-
-  els.viewer.addEventListener("pointermove", (event) => {
-    if (!state.dragging) return;
-    const dx = event.clientX - state.last.x;
-    const dy = event.clientY - state.last.y;
-    state.last = { x: event.clientX, y: event.clientY };
-    state.rotation.y += dx * 0.01;
-    state.rotation.x += dy * 0.008;
-    applyTransform();
-  });
-
-  els.viewer.addEventListener("pointerup", () => {
-    state.dragging = false;
-  });
-
-  els.viewer.addEventListener(
-    "wheel",
-    (event) => {
-      event.preventDefault();
-      state.scale = Math.min(1.85, Math.max(0.62, state.scale + (event.deltaY > 0 ? -0.08 : 0.08)));
-      applyTransform();
-    },
-    { passive: false },
-  );
-
-  els.reset.addEventListener("click", () => {
-    state.rotation = { x: -0.2, y: 0.35 };
-    state.scale = 1;
-    applyTransform();
-  });
-
-  window.addEventListener("resize", resizeRenderer);
-}
-
-function applyTransform() {
-  if (state.group) {
-    state.group.rotation.set(state.rotation.x, state.rotation.y, 0);
-    state.group.scale.setScalar(state.scale);
-  }
-  if (state.fallback) {
-    state.fallback.style.setProperty("--rx", `${state.rotation.x}rad`);
-    state.fallback.style.setProperty("--ry", `${state.rotation.y}rad`);
-    state.fallback.style.setProperty("--scale", state.scale);
-  }
-}
-
-function resizeRenderer() {
-  if (!state.renderer || !state.camera) return;
-  const { clientWidth, clientHeight } = els.viewer;
-  state.camera.aspect = clientWidth / clientHeight;
-  state.camera.updateProjectionMatrix();
-  state.renderer.setSize(clientWidth, clientHeight);
-}
-
-function animate() {
-  if (!state.renderer || !state.scene || !state.camera) return;
-  state.renderer.render(state.scene, state.camera);
-  requestAnimationFrame(animate);
-}
-
 initMenu();
 const initialKey = location.hash.replace("#", "");
 renderCreature(creatures[initialKey] ? initialKey : state.current);
-initThree();
 
-if (new URLSearchParams(location.search).get("section") === "viewer") {
-  const scrollToViewer = () => {
-    window.setTimeout(() => {
-      document.querySelector("#viewer-title")?.scrollIntoView({ block: "start" });
-    }, 450);
-  };
-  if (document.readyState === "complete") {
-    scrollToViewer();
-  } else {
-    window.addEventListener("load", scrollToViewer);
-  }
-}
