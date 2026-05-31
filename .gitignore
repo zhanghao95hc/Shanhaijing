@@ -41,4 +41,5 @@ venv/
 # Temporary files
 tmp/
 temp/
+output/
 *.tmp

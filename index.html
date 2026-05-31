@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>山海异兽录</title>
+    <link rel="stylesheet" href="styles.css?v=20260531" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="brand" href="#" aria-label="山海异兽录首页">
+          <span class="brand-mark">山</span>
+          <span>山海异兽录</span>
+        </a>
+        <nav class="creature-menu" aria-label="异兽选择">
+          <button class="menu-item" type="button" data-creature="jiuweihu">九尾狐</button>
+          <button class="menu-item" type="button" data-creature="zheng">狰</button>
+          <button class="menu-item" type="button" data-creature="paoxiao">狍鸮</button>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="creature-name">
+          <div class="hero-copy">
+            <p class="source" id="creature-source"></p>
+            <h1 id="creature-name"></h1>
+            <p class="summary" id="creature-summary"></p>
+            <dl class="quick-facts" id="quick-facts"></dl>
+          </div>
+
+          <figure class="image-stage">
+            <img id="creature-image" src="" alt="" />
+            <figcaption id="creature-caption"></figcaption>
+          </figure>
+        </section>
+
+        <section class="content-grid">
+          <article class="text-panel original-panel">
+            <h2>山海经原文</h2>
+            <blockquote id="original-text"></blockquote>
+          </article>
+
+          <article class="text-panel">
+            <h2>原文解释</h2>
+            <p id="interpretation"></p>
+          </article>
+
+          <article class="text-panel">
+            <h2>形象依据</h2>
+            <ul class="feature-list" id="feature-list"></ul>
+          </article>
+        </section>
+
+        <section class="viewer-section" aria-labelledby="viewer-title">
+          <div class="viewer-copy">
+            <h2 id="viewer-title">3D 演示</h2>
+            <p id="viewer-note"></p>
+          </div>
+          <div class="viewer-wrap">
+            <div id="three-viewer" class="three-viewer" aria-label="可旋转缩放的异兽三维演示"></div>
+            <div class="viewer-controls">
+              <button type="button" id="reset-view">重置视角</button>
+              <span>拖拽旋转，滚轮缩放</span>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="script.js?v=20260531"></script>
+  </body>
+</html>
