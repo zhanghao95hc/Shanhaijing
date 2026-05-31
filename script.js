@@ -154,9 +154,6 @@ function updateMenuState(key) {
     const isActive = item.getAttribute("data-creature") === key;
     item.classList.toggle("is-active", isActive);
     item.setAttribute("aria-current", isActive ? "page" : "false");
-    item.style.setProperty("background", isActive ? "#161411" : "rgba(255, 250, 236, 0.52)");
-    item.style.setProperty("border-color", isActive ? "#161411" : "rgba(35, 29, 22, 0.22)");
-    item.style.setProperty("color", isActive ? "#e8dfcb" : "#343028");
   });
 }
 
